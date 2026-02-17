@@ -1,0 +1,26 @@
+prepare vehicles- 
+
+curl -X POST http://localhost:8000/prepare-vehicles \
+  -H "Content-Type: application/json" \
+  -d '[
+    {
+      "WarehouseName": "New York",
+      "VehicleType": "truck",
+      "VehicleCapacity": 5000,
+      "DepartureTime": "08:00"
+    }
+  ]'
+
+Assign Vehicles for one leg-
+
+  curl -X POST "http://localhost:8000/assign-vehicles-for-leg?total_goods_kg=4500&objective=cost" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "vehicles": [...],
+    "leg": {
+      "from_city": "New York",
+      "to_city": "Philadelphia",
+      "distance": 95.0,
+      "time": 1.8
+    }
+  }'

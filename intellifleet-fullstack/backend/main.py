@@ -36,7 +36,9 @@ app.add_middleware(
 # ---------------------------------------------------
 # UTILITY FUNCTIONS
 # ---------------------------------------------------
-# Converts numpy data types to native Python types for JSON serialization compatibility.def convert_numpy_types(obj):
+# Converts numpy data types to native Python types for JSON serialization compatibility.
+
+def convert_numpy_types(obj):
     """Convert numpy types to Python native types for JSON serialization."""
     if isinstance(obj, np.integer):
         return int(obj)
