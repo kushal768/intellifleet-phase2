@@ -1,9 +1,9 @@
 \* Vehicle_Assignment *\
 Minimize
-OBJ: 47.5 v_0 + 38 v_1
+OBJ: 8 v_5 + 8 v_6
 Subject To
-_C1: 5000 v_0 + 2000 v_1 >= 4500
+_C1: 6000 v_5 + 4500 v_6 >= 0
 Binaries
-v_0
-v_1
+v_5
+v_6
 End

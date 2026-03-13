@@ -1,0 +1,21 @@
+Country,City,NodeType,Name,Address,Inventory,ReorderLevel
+India,New Delhi,Capital,UPS New Delhi,"D-12/1, Okhla Industrial Area, Phase II, New Delhi 110020, India",130,28
+India,Mumbai,City,Mumbai,"Andheri-Kurla Road, Andheri East, Mumbai 400059, India",120,25
+India,Bengaluru,City,Bengaluru,"45 Outer Ring Road, Mahadevapura, Bengaluru 560048, India",110,23
+India,Chennai,City,Chennai,"SIDCO Industrial Estate, Guindy, Chennai 600032, India",105,22
+India,Hyderabad,City,Hyderabad,"HITEC City Road, Madhapur, Hyderabad 500081, India",100,20
+India,Kolkata,City,Kolkata,"Sector V, Salt Lake, Kolkata 700091, India",98,19
+India,Pune,City,Pune,"Hinjewadi Phase II, Pune 411057, India",95,18
+India,Ahmedabad,City,Ahmedabad,"Sanand Industrial Area, Ahmedabad 382110, India",92,17
+India,Jaipur,City,Jaipur,"Sitapura Industrial Area, Jaipur 302022, India",90,16
+India,Chandigarh,City,Chandigarh,"Industrial Area Phase I, Chandigarh 160002, India",88,15
+India,Amritsar,City,Amritsar,"Verka Industrial Area, Amritsar 143501, India",85,15
+India,Goa,City,Goa,"Verna Industrial Estate, South Goa 403722, India",80,14
+India,Nagpur,City,Nagpur,"MIHAN SEZ, Nagpur 441108, India",78,13
+India,Indore,City,Indore,"Pithampur Industrial Area, Indore 454775, India",75,12
+India,Surat,City,Surat,"Sachin GIDC, Surat 394230, India",73,12
+India,Lucknow,City,Lucknow,"Gomti Nagar Industrial Area, Lucknow 226010, India",70,11
+India,Kanpur,City,Kanpur,"Panki Industrial Area, Kanpur 208020, India",68,11
+India,Patna,City,Patna,"Bihta Industrial Area, Patna 801103, India",65,10
+India,Kochi,City,Kochi,"Kakkanad Industrial Area, Kochi 682030, India",63,10
+India,Trivandrum,City,Trivandrum,"Technopark Phase I, Trivandrum 695581, India",60,9

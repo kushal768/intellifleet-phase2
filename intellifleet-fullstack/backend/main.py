@@ -1,6 +1,7 @@
 # NOTE: If you see model_not_found errors, update your model name in llm.py to one you have access to (e.g., "gpt-4.1")
 from fastapi import FastAPI, UploadFile, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import pandas as pd
 import numpy as np
 import logging
@@ -10,6 +11,7 @@ from utils import haversine, road_metrics, air_metrics
 from optimizer import optimize, get_route_summary
 from llm import parse_query, generate_route_explanation, generate_transport_plan, find_closest_match
 from capacity_optimizer import assign_vehicles_for_leg, prepare_vehicles_df
+from disruption_manager import DisruptionManager, analyze_disruption_scenario
 from io import BytesIO, StringIO
 import csv
 from datetime import datetime
@@ -61,6 +63,7 @@ nodes = {}
 edges = {}
 country_code = "US"
 vehicles_df = None
+warehouses_df = None
 
 
 # ---------------------------------------------------
@@ -229,6 +232,138 @@ async def upload_vehicles(vehicles: UploadFile):
     except Exception as e:
         logger.error(f"Vehicle upload error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------
+# UPLOAD WAREHOUSE DATA
+# ---------------------------------------------------
+
+# Uploads warehouse data from CSV file for inventory management and disruption handling
+@app.post("/upload-warehouses")
+async def upload_warehouses(warehouses: UploadFile):
+    """
+    Upload warehouse data CSV file
+    Expected columns: Country, City, NodeType, Name, Address, Inventory, ReorderLevel
+    """
+    global warehouses_df
+
+    try:
+        # Read warehouses file
+        warehouses_bytes = await warehouses.read()
+        if warehouses.filename.lower().endswith(".xlsx"):
+            warehouses_df = pd.read_excel(BytesIO(warehouses_bytes))
+        else:
+            warehouses_df = pd.read_csv(StringIO(warehouses_bytes.decode()))
+
+        # Validate required columns
+        required_cols = ["City", "Name", "Inventory", "ReorderLevel"]
+        if not all(col in warehouses_df.columns for col in required_cols):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Warehouses CSV missing columns {required_cols}"
+            )
+
+        # Store in app state
+        app.state.warehouses_df = warehouses_df
+
+        return {
+            "status": "success",
+            "warehouses_loaded": len(warehouses_df),
+            "cities": warehouses_df["City"].unique().tolist(),
+            "total_inventory": int(warehouses_df["Inventory"].sum())
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Warehouse upload error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------
+# DISRUPTION HANDLING
+# ---------------------------------------------------
+
+class DisruptionRequest(BaseModel):
+    source_warehouse: str
+    destination_city: str
+    demand_kg: float
+    disruption_time: str = "22:00"
+    required_delivery_time: str = "10:00"
+    repair_hours: int = 5
+    disruption_location: Optional[str] = None
+
+# Handles route disruptions and finds alternative warehouse fulfillment options
+@app.post("/handle-disruption")
+async def handle_disruption(request: DisruptionRequest):
+    """
+    Handle route disruption with alternative warehouse routing
+    
+    Args:
+        request: DisruptionRequest containing:
+            - source_warehouse: Source warehouse city
+            - destination_city: Destination city
+            - demand_kg: Weight of goods in kg
+            - disruption_time: Time when disruption occurred (HH:MM format)
+            - required_delivery_time: Required delivery deadline (HH:MM format)
+            - repair_hours: Hours needed for repair
+        
+    Returns:
+        Disruption analysis with recommendations
+    """
+    
+    if warehouses_df is None or warehouses_df.empty:
+        raise HTTPException(
+            status_code=400,
+            detail="Warehouse data not loaded. Please upload warehouse CSV first."
+        )
+    
+    if edges is None or not edges:
+        raise HTTPException(
+            status_code=400,
+            detail="Route data not loaded. Please upload route data first."
+        )
+    
+    try:
+        # Convert edges dict to dataframe for road routes
+        road_routes_for_disruption = []
+        for (src, dst), edge_data in edges.items():
+            if edge_data.get("mode") == "road":
+                road_routes_for_disruption.append({
+                    "source_city": src,
+                    "destination_city": dst,
+                    "lat_src": edge_data.get("lat_src", 0),
+                    "lon_src": edge_data.get("lon_src", 0),
+                    "lat_dst": edge_data.get("lat_dst", 0),
+                    "lon_dst": edge_data.get("lon_dst", 0)
+                })
+        
+        if not road_routes_for_disruption:
+            raise HTTPException(status_code=400, detail="No road routes found")
+        
+        road_routes_df = pd.DataFrame(road_routes_for_disruption)
+        
+        # Analyze disruption
+        result = analyze_disruption_scenario(
+            warehouses_df=warehouses_df,
+            road_routes_df=road_routes_df,
+            source_warehouse=request.source_warehouse,
+            destination_city=request.destination_city,
+            demand_weight=int(request.demand_kg),
+            disruption_time=request.disruption_time,
+            required_delivery_time=request.required_delivery_time,
+            repair_duration_hours=request.repair_hours,
+            disruption_location=request.disruption_location,
+            vehicles_df=vehicles_df
+        )
+        
+        return convert_numpy_types(result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Disruption handling error: {e}")
+        raise HTTPException(status_code=500, detail=f"Disruption analysis failed: {str(e)}")
 
 
 # ---------------------------------------------------

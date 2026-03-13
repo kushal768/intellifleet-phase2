@@ -6,6 +6,7 @@ export default function FileUpload({ onUploadSuccess, loading }) {
   const [airFile, setAirFile] = useState(null);
   const [roadFile, setRoadFile] = useState(null);
   const [vehiclesFile, setVehiclesFile] = useState(null);
+  const [warehousesFile, setWarehousesFile] = useState(null);
   const [country, setCountry] = useState("US");
   const [error, setError] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -53,6 +54,12 @@ export default function FileUpload({ onUploadSuccess, loading }) {
         "VehicleType",
         "VehicleCapacity",
         "DepartureTime",
+      ],
+      requiredWarehouses = [
+        "City",
+        "Name",
+        "Inventory",
+        "ReorderLevel"
       ];
 
     // Accept CSV or Excel filenames; we validate CSVs with PapaParse only
@@ -61,18 +68,21 @@ export default function FileUpload({ onUploadSuccess, loading }) {
         let requiredCols;
         if (type === "air") requiredCols = requiredAir;
         else if (type === "road") requiredCols = requiredRoad;
-        else requiredCols = requiredVehicles;
+        else if (type === "vehicles") requiredCols = requiredVehicles;
+        else if (type === "warehouses") requiredCols = requiredWarehouses;
         
         await validateCSV(file, requiredCols);
         if (type === "air") setAirFile(file);
         else if (type === "road") setRoadFile(file);
-        else setVehiclesFile(file);
+        else if (type === "vehicles") setVehiclesFile(file);
+        else if (type === "warehouses") setWarehousesFile(file);
         setError("");
       } catch (errMsg) {
         setError(errMsg);
         if (type === "air") setAirFile(null);
         else if (type === "road") setRoadFile(null);
-        else setVehiclesFile(null);
+        else if (type === "vehicles") setVehiclesFile(null);
+        else if (type === "warehouses") setWarehousesFile(null);
       }
     } else if (
       file.name.toLowerCase().endsWith(".xlsx") ||
@@ -81,7 +91,8 @@ export default function FileUpload({ onUploadSuccess, loading }) {
       // Allow Excel uploads; skip PapaParse validation for .xlsx
       if (type === "air") setAirFile(file);
       else if (type === "road") setRoadFile(file);
-      else setVehiclesFile(file);
+      else if (type === "vehicles") setVehiclesFile(file);
+      else if (type === "warehouses") setWarehousesFile(file);
       setError("");
     } else {
       setError("Please select a .csv or .xlsx file");
@@ -99,8 +110,13 @@ export default function FileUpload({ onUploadSuccess, loading }) {
       return;
     }
 
+    if (!warehousesFile) {
+      setError("Please also select the warehouses CSV file");
+      return;
+    }
+
     try {
-      setUploadProgress(35);
+      setUploadProgress(25);
       
       // Upload routes
       const routeFormData = new FormData();
@@ -118,7 +134,7 @@ export default function FileUpload({ onUploadSuccess, loading }) {
         throw new Error("Routes upload failed: " + (errorData.detail || "Unknown error"));
       }
 
-      setUploadProgress(70);
+      setUploadProgress(50);
 
       // Upload vehicles
       const vehicleFormData = new FormData();
@@ -134,7 +150,23 @@ export default function FileUpload({ onUploadSuccess, loading }) {
         throw new Error("Vehicles upload failed: " + (errorData.detail || "Unknown error"));
       }
 
-      const vehicleData = await vehicleResponse.json();
+      setUploadProgress(75);
+
+      // Upload warehouses
+      const warehouseFormData = new FormData();
+      warehouseFormData.append("warehouses", warehousesFile);
+
+      const warehouseResponse = await fetch("http://localhost:8000/upload-warehouses", {
+        method: "POST",
+        body: warehouseFormData,
+      });
+
+      if (!warehouseResponse.ok) {
+        const errorData = await warehouseResponse.json();
+        throw new Error("Warehouses upload failed: " + (errorData.detail || "Unknown error"));
+      }
+
+      const warehouseData = await warehouseResponse.json();
       setUploadProgress(100);
 
       setTimeout(() => {
@@ -142,7 +174,8 @@ export default function FileUpload({ onUploadSuccess, loading }) {
         setAirFile(null);
         setRoadFile(null);
         setVehiclesFile(null);
-        onUploadSuccess(vehicleData);
+        setWarehousesFile(null);
+        onUploadSuccess(warehouseData);
       }, 500);
     } catch (err) {
       setError(err.message || "Upload failed. Please check your files.");
@@ -211,14 +244,28 @@ export default function FileUpload({ onUploadSuccess, loading }) {
           </label>
         </div>
 
+        <div className="form-group">
+          <label className="file-label">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={(e) => handleFileChange(e, "warehouses")}
+              disabled={loading}
+            />
+            <span className="file-input-text">
+              {warehousesFile ? `✓ ${warehousesFile.name}` : "Select Warehouses CSV (warehouse data)"}
+            </span>
+          </label>
+        </div>
+
         {error && <div className="error-message">{error}</div>}
 
         <button
           onClick={handleUpload}
-          disabled={!airFile || !roadFile || !vehiclesFile || loading}
+          disabled={!airFile || !roadFile || !vehiclesFile || !warehousesFile || loading}
           className="upload-btn"
         >
-          {loading ? "Uploading..." : "Upload Routes & Vehicles"}
+          {loading ? "Uploading..." : "Upload Routes, Vehicles & Warehouses"}
         </button>
 
         {uploadProgress > 0 && (
@@ -245,6 +292,10 @@ export default function FileUpload({ onUploadSuccess, loading }) {
           <p>
             <strong>Vehicles:</strong> WarehouseName, VehicleType, VehicleCapacity,
             DepartureTime
+          </p>
+          <p>
+            <strong>Warehouses:</strong> Country, City, NodeType, Name, Address, Inventory,
+            ReorderLevel
           </p>
         </div>
       </div>
